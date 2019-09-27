@@ -1,0 +1,59 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+macro_data <- read_excel("F:/INSOFE/PHD/ML/MacroEconomicData.xlsx", sheet = 1, na='?')
+
+
+colnames(macro_data)<-c('year_month','nominal_gdp','real_gdp','cpi','party_in_power','unemployment_rate','credit_interest','pers_interest','wages_per_hour','ad_expense','cotton_price','price_change_pers','upland_planted','upland_harvested','yield','production','mill_use','exports')
+```
+
+```{r}
+colSums(is.na(macro_data))
+macro_data$ad_expense<-NULL
+macro_data$party_in_power<-NULL
+```
+
+```{r}
+str(macro_data)
+macro_data$year_month <- as.factor(macro_data$year_month)
+```
+
+
+```{r}
+#Find correlation of the macro economic data
+library(corrplot)
+corrplot(cor(macro_data[,-c(1,2)]),method="number")
+```
+
+```{r}
+library(caret)
+highlyCorDescr <- findCorrelation(cor(macro_data[,-c(1,2)]), cutoff = 0.90)
+```
+
+```{r}
+#Feature engineering
+#There are 6 highly correlated columns - nominal_gdp, real_gdp, wages_per_hour, unemployment_rate, production
+#Production is highly correlated with upland_harvested- we will consider production
+#We will drop nominal_gdp, real_gdp, unemployment_rate and retain wages per hour
+macro_df_final = macro_data[,c("year_month","cpi","credit_interest","pers_interest","wages_per_hour","cotton_price","price_change_pers","upland_planted","yield","production","mill_use","exports")]
+
+```
+
+```{r}
+std_model <- preProcess(macro_df_final[,!names(macro_df_final) %in% c("year_month")],method = c("center","scale"))
+
+macro_df_final[,!names(macro_df_final) %in% c("year_month")] <- predict(object=std_model,newdata = macro_df_final[,!names(macro_df_final) %in% c("year_month")])
+
+year_month <- macro_df_final$year_month
+
+temp_macro = macro_df_final %>% group_by(year_month) %>% summarise_each(funs(mean))
+
+macro_df_final = temp_macro
+macro_df_final$year_month <- year_month
+head(macro_df_final)
+```
+

@@ -1,0 +1,62 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+library(readxl)
+library(dplyr)
+library(data.table)
+library(XLConnect)
+library(tidyr)
+```
+
+
+```{r}
+
+wb = loadWorkbook("F:/INSOFE/PHD/ML/WeatherData.xlsx")
+df_2009 = readWorksheet(wb, sheet = "2009", header = FALSE)
+df_2009 <- df_2009[-1,]
+```
+
+```{r}
+cols <- c(1:2,5,8,11,14,17,20,23)
+df_2009<-df_2009[,cols]
+colnames(df_2009)<-c('year','month','temp_avg','dew_avg','humidity_avg','sea_level_avg','visibility_avg','wind_avg','weather_event')
+df_2009[,c(1,3,4,5,6,7,8)] <- sapply( df_2009[,c(1,3,4,5,6,7,8)], as.numeric )
+df_2009[,c(2)] <- sapply(df_2009[,c(2)],as.factor)
+head(df_2009)
+df_2009 <- df_2009 %>% mutate(weather_event = ifelse(is.na(weather_event),'normal','abnormal'))
+df_2009[,c(9)] <- sapply(df_2009[,c(9)],as.factor)
+```
+
+```{r}
+summary(df_2009)
+df_2009$wind_avg[is.na(df_2009$wind_avg)] = mean(df_2009$wind_avg, na.rm = TRUE)
+```
+
+```{r}
+output <- setDT(df_2009)[ , .(count=.N) , by = .(weather_event,month)]
+
+weather_event_counts<-spread(data=output, key =weather_event, count)
+
+```
+
+```{r}
+df_2009$weather_event <- NULL
+
+df_2009 = df_2009 %>% group_by(year,month ) %>% summarise_each(funs(mean))
+
+```
+
+```{r}
+weather_2009<-merge(df_2009,weather_event_counts, by='month')
+weather_2009$year_month <- paste(weather_2009$year, weather_2009$month, sep=" - ")
+weather_2009$month<-NULL
+weather_2009$year<-NULL
+colnames(weather_2009)
+```
+
+```{r}
+corrplot(cor(weather_2009[,-c(9)]),method="number")
+```
+
